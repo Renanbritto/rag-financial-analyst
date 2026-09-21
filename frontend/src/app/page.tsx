@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Send, Bot, User, FileText, Settings, Upload, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,8 @@ type Message = {
 export default function ChatPage() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     setMounted(true);
@@ -27,35 +29,66 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
-      content: "Olá! Sou o seu Analista Financeiro de IA. Você pode me perguntar sobre os DREs ou fazer o upload de um relatório financeiro para analisarmos.",
+      content: "Olá! Sou o seu Analista Financeiro de IA. Consegui me conectar com sucesso ao Qdrant. Como posso te ajudar hoje?",
       sender: "bot",
       timestamp: new Date(),
     },
   ]);
   const [inputValue, setInputValue] = useState("");
 
-  const handleSendMessage = () => {
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
+    const userMessage = inputValue;
     const newUserMsg: Message = {
       id: Date.now(),
-      content: inputValue,
+      content: userMessage,
       sender: "user",
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, newUserMsg]);
     setInputValue("");
+    setIsLoading(true);
 
-    setTimeout(() => {
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: userMessage }),
+      });
+
+      const data = await response.json();
+
       const botResponse: Message = {
         id: Date.now() + 1,
-        content: "Neste momento, a conexão com o n8n está sendo configurada. Logo serei capaz de ler os seus PDFs e DREs direto do nosso banco vetorial (Qdrant).",
+        content: response.ok ? data.reply : `Erro: ${data.error}`,
         sender: "bot",
         timestamp: new Date(),
       };
+      
       setMessages((prev) => [...prev, botResponse]);
-    }, 1000);
+    } catch (error) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          content: "Desculpe, ocorreu um erro de conexão com o backend.",
+          sender: "bot",
+          timestamp: new Date(),
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const toggleTheme = () => {
@@ -110,8 +143,8 @@ export default function ChatPage() {
           </Avatar>
         </header>
 
-        <ScrollArea className="flex-1 p-4 md:p-6 bg-slate-50 dark:bg-slate-950">
-          <div className="max-w-3xl mx-auto space-y-6">
+        <ScrollArea className="flex-1 p-4 md:p-6 bg-slate-50 dark:bg-slate-950" ref={scrollRef}>
+          <div className="max-w-3xl mx-auto space-y-6 pb-4">
             {messages.map((msg) => (
               <div
                 key={msg.id}
@@ -137,6 +170,18 @@ export default function ChatPage() {
                 </div>
               </div>
             ))}
+            {isLoading && (
+              <div className="flex gap-4 flex-row">
+                <Avatar className="w-8 h-8 mt-1 border border-slate-200 dark:border-slate-700">
+                  <AvatarFallback className="bg-blue-600 text-white"><Bot className="w-4 h-4" /></AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col items-start max-w-[80%]">
+                  <Card className="p-4 shadow-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                    <p className="text-sm leading-relaxed text-slate-500 animate-pulse">Analisando documentos...</p>
+                  </Card>
+                </div>
+              </div>
+            )}
           </div>
         </ScrollArea>
 
@@ -153,12 +198,13 @@ export default function ChatPage() {
               }}
               placeholder="Faça uma pergunta sobre o DRE ou relatório..."
               className="pr-12 py-6 rounded-xl shadow-sm border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-base"
+              disabled={isLoading}
             />
             <Button 
               size="icon" 
               className="absolute right-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
               onClick={handleSendMessage}
-              disabled={!inputValue.trim()}
+              disabled={!inputValue.trim() || isLoading}
             >
               <Send className="w-4 h-4" />
             </Button>
