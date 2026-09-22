@@ -20,7 +20,9 @@ export default function ChatPage() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
     setMounted(true);
@@ -40,7 +42,7 @@ export default function ChatPage() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, isUploading]);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
@@ -91,6 +93,61 @@ export default function ChatPage() {
     }
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        content: `Enviando documento: ${file.name}...`,
+        sender: "user",
+        timestamp: new Date(),
+      },
+    ]);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          content: response.ok 
+            ? `✅ Sucesso! O documento "${file.name}" foi lido e salvo no banco de dados. Você já pode me fazer perguntas sobre ele.`
+            : `❌ Erro ao processar documento: ${data.error}`,
+          sender: "bot",
+          timestamp: new Date(),
+        },
+      ]);
+    } catch (error) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          content: "❌ Ocorreu um erro ao enviar o documento para o servidor.",
+          sender: "bot",
+          timestamp: new Date(),
+        },
+      ]);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""; // Reset input
+      }
+    }
+  };
+
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
   };
@@ -120,9 +177,22 @@ export default function ChatPage() {
         </div>
 
         <div className="mt-auto border-t border-slate-200 dark:border-slate-800 pt-4 space-y-2">
-          <Button variant="outline" className="w-full justify-start bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+          {/* File Input */}
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            accept="application/pdf" 
+            className="hidden" 
+          />
+          <Button 
+            variant="outline" 
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="w-full justify-start bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
+          >
             <Upload className="mr-2 w-4 h-4" />
-            Novo DRE (PDF)
+            {isUploading ? "Enviando..." : "Novo DRE (PDF)"}
           </Button>
           <Button variant="ghost" className="w-full justify-start text-slate-600 dark:text-slate-300" onClick={toggleTheme}>
             {mounted && theme === "dark" ? <Sun className="mr-2 w-4 h-4" /> : <Moon className="mr-2 w-4 h-4" />}
@@ -170,14 +240,16 @@ export default function ChatPage() {
                 </div>
               </div>
             ))}
-            {isLoading && (
+            {(isLoading || isUploading) && (
               <div className="flex gap-4 flex-row">
                 <Avatar className="w-8 h-8 mt-1 border border-slate-200 dark:border-slate-700">
                   <AvatarFallback className="bg-blue-600 text-white"><Bot className="w-4 h-4" /></AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col items-start max-w-[80%]">
                   <Card className="p-4 shadow-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-                    <p className="text-sm leading-relaxed text-slate-500 animate-pulse">Analisando documentos...</p>
+                    <p className="text-sm leading-relaxed text-slate-500 animate-pulse">
+                      {isUploading ? "Processando e lendo documento..." : "Analisando..."}
+                    </p>
                   </Card>
                 </div>
               </div>
@@ -198,13 +270,13 @@ export default function ChatPage() {
               }}
               placeholder="Faça uma pergunta sobre o DRE ou relatório..."
               className="pr-12 py-6 rounded-xl shadow-sm border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-base"
-              disabled={isLoading}
+              disabled={isLoading || isUploading}
             />
             <Button 
               size="icon" 
               className="absolute right-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
               onClick={handleSendMessage}
-              disabled={!inputValue.trim() || isLoading}
+              disabled={!inputValue.trim() || isLoading || isUploading}
             >
               <Send className="w-4 h-4" />
             </Button>

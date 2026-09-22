@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     const n8nData = await n8nResponse.json();
     
     // O AI Agent node normalmente retorna a resposta no campo 'output' ou 'text'
-    const reply = n8nData.output || n8nData.text || JSON.stringify(n8nData);
+    const reply = n8nData.output || n8nData.response || n8nData.text || JSON.stringify(n8nData);
 
     return NextResponse.json({ reply });
   } catch (error) {
