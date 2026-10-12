@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   PanelLeftClose, 
   PanelLeftOpen, 
@@ -264,49 +263,21 @@ function getNextId(prefix: string): string {
   return `${prefix}-${counter}`;
 }
 
+const emptySubscribe = () => () => {};
+
 export default function Home() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [sessions, setSessions] = useState<Session[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("rn_intelligence_financial_sessions_v3");
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
-          }
-        } catch (e) {
-          console.error("Failed to parse sessions", e);
-        }
-      }
+  const isMounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+  const [sessions, setSessions] = useState<Session[]>([
+    {
+      id: "session-default-1",
+      title: "Auditoria de DRE #1",
+      messages: [{ ...INITIAL_BOT_MESSAGE, id: "msg-default-1", timestamp: "09:30" }],
+      updatedAt: "2026-10-12T09:30:00.000Z"
     }
-    return [
-      {
-        id: "session-default-1",
-        title: "Nova Auditoria de DRE",
-        messages: [{ ...INITIAL_BOT_MESSAGE, id: "msg-default-1", timestamp: "09:30" }],
-        updatedAt: "2026-10-12T09:30:00.000Z"
-      }
-    ];
-  });
+  ]);
 
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("rn_intelligence_financial_sessions_v3");
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed[0].id;
-          }
-        } catch {
-          // fallback
-        }
-      }
-    }
-    return "session-default-1";
-  });
-
+  const [activeSessionId, setActiveSessionId] = useState<string>("session-default-1");
   const [activeDocument, setActiveDocument] = useState<ActiveDocument | null>(DEFAULT_DOCUMENT);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   
@@ -318,17 +289,85 @@ export default function Home() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Safe client hydration from localStorage & cleanup of legacy v3 data
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("rn_intelligence_financial_sessions_v3");
+          
+          const saved = localStorage.getItem("rn_intelligence_financial_sessions_v4");
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const sanitized: Session[] = parsed.map((s: Session, idx: number) => ({
+                ...s,
+                title: s.title && s.title.trim() ? s.title.trim() : `Auditoria #${idx + 1}`
+              }));
+              setSessions(sanitized);
+              setActiveSessionId(sanitized[0].id);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load sessions from storage", e);
+      }
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Persist sessions only after mounted
+  useEffect(() => {
+    if (isMounted && sessions.length > 0) {
+      try {
+        localStorage.setItem("rn_intelligence_financial_sessions_v4", JSON.stringify(sessions));
+      } catch (e) {
+        console.error("Failed to save sessions", e);
+      }
+    }
+  }, [sessions, isMounted]);
+
   const createNewSession = useCallback(() => {
+    // If the active session is already clean (has no user interactions), don't spawn duplicate sessions
+    const currentActive = sessions.find(s => s.id === activeSessionId);
+    const hasUserInteraction = currentActive?.messages.some(m => m.sender === "user");
+
+    if (currentActive && !hasUserInteraction) {
+      setInputValue("");
+      return;
+    }
+
     const sessionId = getNextId("session");
+    const sessionNum = sessions.length + 1;
     const newSession: Session = {
       id: sessionId,
-      title: "Nova Auditoria de DRE",
-      messages: [{ ...INITIAL_BOT_MESSAGE, id: getNextId("msg"), timestamp: "09:30" }],
-      updatedAt: "2026-10-12T09:30:00.000Z"
+      title: `Auditoria #${sessionNum}`,
+      messages: [{ ...INITIAL_BOT_MESSAGE, id: getNextId("msg"), timestamp: "Agora" }],
+      updatedAt: "2026-10-12T10:00:00.000Z"
     };
     
     setSessions(prev => [newSession, ...prev]);
     setActiveSessionId(sessionId);
+    setInputValue("");
+  }, [sessions, activeSessionId]);
+
+  const clearAllSessions = useCallback(() => {
+    const freshId = getNextId("session");
+    const freshSession: Session = {
+      id: freshId,
+      title: "Auditoria de DRE #1",
+      messages: [{ ...INITIAL_BOT_MESSAGE, id: getNextId("msg"), timestamp: "09:30" }],
+      updatedAt: "2026-10-12T09:30:00.000Z"
+    };
+    setSessions([freshSession]);
+    setActiveSessionId(freshId);
+    setInputValue("");
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("rn_intelligence_financial_sessions_v4", JSON.stringify([freshSession]));
+      } catch {}
+    }
   }, []);
 
   const loadSampleDRE = useCallback(() => {
@@ -371,13 +410,6 @@ export default function Home() {
     }));
   }, [activeSessionId]);
 
-  // Persist sessions
-  useEffect(() => {
-    if (sessions.length > 0) {
-      localStorage.setItem("rn_intelligence_financial_sessions_v3", JSON.stringify(sessions));
-    }
-  }, [sessions]);
-
   // Auto-scroll chat
   useEffect(() => {
     if (scrollRef.current) {
@@ -385,24 +417,31 @@ export default function Home() {
     }
   }, [sessions, isLoading, isUploading]);
 
-  const activeSession = sessions.find(s => s.id === activeSessionId) || sessions[0];
+  const activeSession = sessions.find(s => s.id === activeSessionId) || sessions[0] || {
+    id: "session-fallback",
+    title: "Auditoria de DRE",
+    messages: [],
+    updatedAt: "2026-10-12T10:00:00.000Z"
+  };
   const activeMessages = activeSession?.messages || [];
 
   const deleteSession = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const updated = sessions.filter(s => s.id !== id);
+    if (updated.length === 0) {
+      clearAllSessions();
+      return;
+    }
     setSessions(updated);
     if (activeSessionId === id) {
-      if (updated.length > 0) {
-        setActiveSessionId(updated[0].id);
-      } else {
-        createNewSession();
-      }
+      setActiveSessionId(updated[0].id);
     }
   };
 
   const handleSendMessage = async (textToSend?: string) => {
     const query = (textToSend || inputValue).trim();
+    if (!query) return;
+
     const userMsgId = getNextId("user");
     const userMsg: Message = {
       id: userMsgId,
@@ -413,9 +452,14 @@ export default function Home() {
 
     const newMessages = [...activeSession.messages, userMsg];
     
-    const isDefaultTitle = activeSession.title.startsWith("Nova Auditoria");
+    // Auto-update default title to user's first prompt
+    const isDefaultTitle = 
+      activeSession.title.startsWith("Nova Auditoria") || 
+      activeSession.title.startsWith("Auditoria #") ||
+      activeSession.title.startsWith("Auditoria de DRE");
+    
     const updatedTitle = isDefaultTitle 
-      ? query.length > 30 ? query.substring(0, 30) + "..." : query 
+      ? query.length > 28 ? query.substring(0, 28) + "..." : query 
       : activeSession.title;
 
     setSessions(prev => prev.map(s => {
@@ -718,56 +762,66 @@ export default function Home() {
         </div>
 
         {/* Sessions List */}
-        <div className="flex-1 overflow-hidden flex flex-col px-3">
+        <div className="flex-1 overflow-hidden flex flex-col px-3 min-h-0">
           {isSidebarOpen && (
-            <div className="flex items-center justify-between mb-2 px-1 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+            <div className="flex items-center justify-between mb-2 px-1 text-[10px] font-bold text-zinc-500 uppercase tracking-widest shrink-0">
               <span>Auditorias Salvas</span>
-              <span className="px-1.5 py-0.5 rounded-md bg-white/[0.06] text-zinc-300 font-mono">
-                {sessions.length}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="px-1.5 py-0.5 rounded-md bg-white/[0.06] text-zinc-300 font-mono">
+                  {sessions.length}
+                </span>
+                {sessions.length > 1 && (
+                  <button
+                    onClick={clearAllSessions}
+                    className="text-[10px] text-zinc-400 hover:text-rose-400 hover:underline transition-colors ml-1"
+                    title="Redefinir todas as auditorias para uma sessão limpa"
+                  >
+                    Limpar
+                  </button>
+                )}
+              </div>
             </div>
           )}
           
-          <ScrollArea className="flex-1 -mr-2 pr-2">
-            <div className="space-y-1 pb-4">
-              {sessions.map((session) => {
-                const isActive = activeSessionId === session.id;
-                return (
-                  <div 
-                    key={session.id}
-                    onClick={() => setActiveSessionId(session.id)}
-                    className={`group flex items-center justify-between w-full rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer border ${
-                      isSidebarOpen ? "px-3 py-2.5" : "p-2.5 justify-center"
-                    } ${
-                      isActive 
-                        ? "bg-white/[0.08] border-cyan-500/40 text-cyan-300 shadow-sm font-semibold" 
-                        : "border-transparent text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200"
-                    }`}
-                    title={session.title}
-                  >
-                    <div className="flex items-center truncate min-w-0 pr-1">
-                      <MessageSquare className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-cyan-400" : "text-zinc-500 group-hover:text-zinc-400"} ${isSidebarOpen ? "mr-2.5" : ""}`} />
-                      {isSidebarOpen && <span className="truncate">{session.title}</span>}
-                    </div>
-                    
-                    {isSidebarOpen && sessions.length > 1 && (
-                      <button 
-                        onClick={(e) => deleteSession(session.id, e)}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-rose-950/60 text-zinc-500 hover:text-rose-400 rounded-md transition-all shrink-0"
-                        title="Excluir auditoria"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    )}
+          <div className="flex-1 overflow-y-auto space-y-1 pb-4 pr-1">
+            {sessions.map((session) => {
+              const isActive = activeSessionId === session.id;
+              const displayTitle = session.title?.trim() || "Nova Auditoria";
+              return (
+                <div 
+                  key={session.id}
+                  onClick={() => setActiveSessionId(session.id)}
+                  className={`group flex items-center justify-between w-full rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer border ${
+                    isSidebarOpen ? "px-3 py-2.5" : "p-2.5 justify-center"
+                  } ${
+                    isActive 
+                      ? "bg-white/[0.08] border-cyan-500/40 text-cyan-300 shadow-sm font-semibold" 
+                      : "border-transparent text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200"
+                  }`}
+                  title={displayTitle}
+                >
+                  <div className="flex items-center truncate min-w-0 pr-1">
+                    <MessageSquare className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-cyan-400" : "text-zinc-500 group-hover:text-zinc-400"} ${isSidebarOpen ? "mr-2.5" : ""}`} />
+                    {isSidebarOpen && <span className="truncate">{displayTitle}</span>}
                   </div>
-                );
-              })}
-            </div>
-          </ScrollArea>
+                  
+                  {isSidebarOpen && sessions.length > 1 && (
+                    <button 
+                      onClick={(e) => deleteSession(session.id, e)}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-rose-950/60 text-zinc-500 hover:text-rose-400 rounded-md transition-all shrink-0 ml-1"
+                      title="Excluir auditoria"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Sidebar Footer: Portfolio link */}
-        <div className="p-3 border-t border-white/10 mt-auto">
+        <div className="p-3 border-t border-white/10 mt-auto shrink-0">
 
           <a 
             href="https://renan-nocelli.vercel.app/projetos/analista-financeiro-rag-llm" 
@@ -791,18 +845,16 @@ export default function Home() {
         <header className="h-16 border-b border-white/10 bg-[#0b0f1a]/80 backdrop-blur-xl flex items-center px-4 sm:px-6 justify-between shrink-0 absolute top-0 w-full z-20">
           <div className="flex items-center gap-3 min-w-0 pr-4">
             
-            {/* Direct Sidebar Toggle from Top Bar */}
-            <button
-              onClick={() => setIsSidebarOpen(prev => !prev)}
-              className="p-2 -ml-1 text-zinc-400 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all flex items-center justify-center shrink-0 border border-transparent hover:border-white/10"
-              title={isSidebarOpen ? "Recolher menu lateral" : "Expandir menu lateral"}
-            >
-              {isSidebarOpen ? (
-                <PanelLeftClose className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-400" />
-              ) : (
+            {/* Direct Sidebar Toggle: Only displayed when sidebar is closed to avoid duplicate buttons */}
+            {!isSidebarOpen && (
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="p-2 -ml-1 text-zinc-400 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all flex items-center justify-center shrink-0 border border-transparent hover:border-white/10"
+                title="Expandir menu lateral"
+              >
                 <PanelLeftOpen className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
-              )}
-            </button>
+              </button>
+            )}
 
             <div className="flex items-center min-w-0">
               <span className="font-bold text-white truncate text-sm sm:text-base tracking-tight">
