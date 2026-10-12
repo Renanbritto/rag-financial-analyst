@@ -26,7 +26,9 @@ import {
   Clock, 
   User,
   Paperclip,
-  Activity
+  Activity,
+  Download,
+  FileCheck
 } from "lucide-react";
 
 type Message = {
@@ -328,6 +330,46 @@ export default function Home() {
     setSessions(prev => [newSession, ...prev]);
     setActiveSessionId(sessionId);
   }, []);
+
+  const loadSampleDRE = useCallback(() => {
+    setActiveDocument({
+      name: "DRE_Consolidada_Auditoria_4T24.pdf",
+      size: "2.84 MB",
+      pages: 28,
+      chunks: 46,
+      indexedAt: "Agora"
+    });
+
+    const userMsg: Message = {
+      id: getNextId("user"),
+      content: "⚡ Carregando documento de demonstração: **DRE_Consolidada_Auditoria_4T24.pdf** para auditoria contábil.",
+      sender: "user",
+      timestamp: "Agora",
+    };
+
+    const botMsg: Message = {
+      id: getNextId("bot"),
+      content: `✅ **Demonstrativo Contábil Carregado com Sucesso!**\n\nO documento **"DRE_Consolidada_Auditoria_4T24.pdf"** foi indexado no cluster vetorial do **Qdrant**.\n\n| Indicador Auditado | 4T23 | 4T24 | Variação YoY |\n| :--- | :--- | :--- | :--- |\n| Receita Operacional Líquida | R$ 1.450,2 M | R$ 1.820,5 M | +25.5% |\n| Lucro Bruto | R$ 536,5 M | R$ 710,0 M | +32.3% |\n| Margem EBITDA | 18.4% | 22.1% | +3.7 p.p. |\n| Lucro Líquido | R$ 128,4 M | R$ 194,6 M | +51.6% |\n\nVocê já pode solicitar cálculos de margem, reconciliação de notas ou resumos executivos.`,
+      sender: "bot",
+      timestamp: "Agora",
+      groundedness: 98.7,
+      sources: ["DRE_Consolidada_Auditoria_4T24.pdf (Pág. 08)", "Notas Explicativas 14 e 18"],
+      chunksCount: 46,
+      inferenceTime: "0.82s"
+    };
+
+    setSessions(prev => prev.map(s => {
+      if (s.id === activeSessionId) {
+        return {
+          ...s,
+          title: "Auditoria DRE 4T24",
+          messages: [...s.messages, userMsg, botMsg],
+          updatedAt: "2026-10-12T10:00:00.000Z"
+        };
+      }
+      return s;
+    }));
+  }, [activeSessionId]);
 
   // Persist sessions
   useEffect(() => {
@@ -770,7 +812,16 @@ export default function Home() {
           </div>
 
           {/* Top Actions: Upload Trigger & Profile */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <a
+              href="/exemplo-dre-4t24.pdf"
+              download="DRE_Consolidada_Auditoria_4T24.pdf"
+              className="hidden md:inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition-all shadow-sm"
+              title="Baixar PDF de DRE real para testar o upload"
+            >
+              <Download className="w-3.5 h-3.5" /> Baixar PDF Exemplo
+            </a>
+
             <button
               onClick={() => fileInputRef.current?.click()}
               className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-zinc-200 hover:text-white transition-all"
@@ -817,6 +868,15 @@ export default function Home() {
                 </div>
 
                 <div className="flex items-center gap-2 ml-auto">
+                  <a
+                    href="/exemplo-dre-4t24.pdf"
+                    download="DRE_Consolidada_Auditoria_4T24.pdf"
+                    className="text-xs font-medium px-3 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition-colors flex items-center gap-1.5"
+                    title="Baixar cópia do PDF de exemplo"
+                  >
+                    <Download className="w-3 h-3" /> Baixar PDF
+                  </a>
+
                   <button 
                     onClick={() => fileInputRef.current?.click()}
                     className="text-xs font-medium px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white border border-white/10 transition-colors flex items-center gap-1.5"
@@ -914,17 +974,39 @@ export default function Home() {
                 {/* Dropzone Container */}
                 <div 
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-6 rounded-2xl border-2 border-dashed border-white/15 hover:border-cyan-500/50 bg-[#0b0f1a]/60 hover:bg-[#0b0f1a]/90 cursor-pointer transition-all duration-200 text-center space-y-2 group"
+                  className="p-6 rounded-2xl border-2 border-dashed border-white/15 hover:border-cyan-500/50 bg-[#0b0f1a]/60 hover:bg-[#0b0f1a]/90 cursor-pointer transition-all duration-200 text-center space-y-3 group"
                 >
                   <div className="w-10 h-10 mx-auto rounded-xl bg-white/[0.04] group-hover:bg-cyan-500/10 border border-white/10 group-hover:border-cyan-500/30 flex items-center justify-center text-zinc-400 group-hover:text-cyan-400 transition-colors">
                     <Upload className="w-5 h-5" />
                   </div>
-                  <h4 className="text-xs font-bold text-zinc-200 group-hover:text-white">
-                    Central de Ingestão de Demonstrativos Contábeis
-                  </h4>
-                  <p className="text-[11px] text-zinc-400 max-w-md mx-auto">
-                    Arraste ou selecione qualquer relatório contábil (PDF) para extração de tabelas, indexação vetorial e cruzamento de notas explicativas.
-                  </p>
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold text-zinc-200 group-hover:text-white">
+                      Central de Ingestão de Demonstrativos Contábeis
+                    </h4>
+                    <p className="text-[11px] text-zinc-400 max-w-md mx-auto">
+                      Arraste ou selecione qualquer relatório contábil (PDF) para extração de tabelas, indexação vetorial e cruzamento de notas explicativas.
+                    </p>
+                  </div>
+
+                  {/* Sample PDF Actions */}
+                  <div className="flex items-center justify-center gap-2.5 pt-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                    <a
+                      href="/exemplo-dre-4t24.pdf"
+                      download="DRE_Consolidada_Auditoria_4T24.pdf"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition-all hover:scale-[1.02] shadow-sm"
+                      title="Baixar PDF de DRE real para testar o upload"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Baixar PDF Exemplo (DRE 4T24)
+                    </a>
+                    
+                    <button
+                      onClick={loadSampleDRE}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-zinc-200 border border-white/10 transition-all hover:scale-[1.02]"
+                      title="Testar ingestão com documento de demonstração pré-carregado"
+                    >
+                      <FileCheck className="w-3.5 h-3.5 text-emerald-400" /> Testar Ingestão Imediata
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
