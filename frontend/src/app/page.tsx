@@ -14,7 +14,6 @@ import {
   Plus, 
   MessageSquare, 
   Trash2,
-  Sparkles,
   TrendingUp,
   BarChart3,
   ShieldCheck,
@@ -331,7 +330,7 @@ export default function Home() {
               </h1>
             </div>
             <span className="text-[11px] font-medium text-cyan-600 dark:text-cyan-400 flex items-center gap-1">
-              <Sparkles className="w-3 h-3" /> Skill: Financial RAG
+              <TrendingUp className="w-3 h-3" /> Skill: Financial RAG
             </span>
           </div>
         </div>
@@ -488,8 +487,12 @@ export default function Home() {
                 <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-b from-white/80 to-white/40 dark:from-[#0d1427]/80 dark:to-[#090d1a]/50 border border-slate-200/80 dark:border-slate-800/80 backdrop-blur-xl shadow-xl shadow-slate-200/30 dark:shadow-black/40">
                   <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 via-cyan-500 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-cyan-500/25">
-                        <Sparkles className="w-6 h-6" />
+                      <div className="relative flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 via-cyan-500 to-teal-400 p-[1.5px] shadow-lg shadow-cyan-500/25">
+                        <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
+                          <span className="font-extrabold text-base tracking-wider bg-gradient-to-r from-blue-400 via-cyan-300 to-teal-200 bg-clip-text text-transparent">
+                            RN
+                          </span>
+                        </div>
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
