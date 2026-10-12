@@ -22,8 +22,6 @@ import {
   ShieldCheck, 
   Scale, 
   ArrowRight, 
-  Cpu, 
-  Database, 
   Layers, 
   Clock, 
   User,
@@ -621,13 +619,9 @@ export default function Home() {
           {isSidebarOpen ? (
             <>
               <div className="flex items-center gap-3 min-w-0">
-                {/* Monogram Emblem RN */}
-                <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-cyan-500 to-teal-400 p-[1.5px] shadow-lg shadow-cyan-500/20 shrink-0">
-                  <div className="w-full h-full bg-[#090d16] rounded-[10px] flex items-center justify-center">
-                    <span className="font-extrabold text-sm tracking-wider bg-gradient-to-r from-blue-400 via-cyan-300 to-teal-200 bg-clip-text text-transparent">
-                      RN
-                    </span>
-                  </div>
+                {/* Official Financial Emblem RN */}
+                <div className="relative flex items-center justify-center w-10 h-10 rounded-xl overflow-hidden ring-1 ring-cyan-500/40 shadow-lg shadow-cyan-500/20 shrink-0 bg-[#090d16]">
+                  <img src="/rn_financial_logo.jpg" alt="RN Intelligence" className="w-full h-full object-cover" />
                   <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 border-2 border-[#090d16] rounded-full animate-pulse" />
                 </div>
 
@@ -654,14 +648,10 @@ export default function Home() {
               {/* Collapsed State: Center RN Logo and Direct Open Button */}
               <button
                 onClick={() => setIsSidebarOpen(true)}
-                className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-cyan-500 to-teal-400 p-[1.5px] shadow-lg shadow-cyan-500/20 shrink-0 hover:scale-105 transition-transform"
+                className="relative flex items-center justify-center w-10 h-10 rounded-xl overflow-hidden ring-1 ring-cyan-500/40 shadow-lg shadow-cyan-500/20 shrink-0 hover:scale-105 transition-transform bg-[#090d16]"
                 title="Clique para abrir o menu lateral"
               >
-                <div className="w-full h-full bg-[#090d16] rounded-[10px] flex items-center justify-center">
-                  <span className="font-extrabold text-sm tracking-wider bg-gradient-to-r from-blue-400 via-cyan-300 to-teal-200 bg-clip-text text-transparent">
-                    RN
-                  </span>
-                </div>
+                <img src="/rn_financial_logo.jpg" alt="RN Intelligence" className="w-full h-full object-cover" />
                 <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 border-2 border-[#090d16] rounded-full" />
               </button>
 
@@ -739,42 +729,8 @@ export default function Home() {
           </ScrollArea>
         </div>
 
-        {/* Telemetry Card & Portfolio link */}
-        <div className="p-3 border-t border-white/10 space-y-2 mt-auto">
-          {isSidebarOpen ? (
-            <div className="p-3 rounded-xl bg-[#090d16] border border-white/10 text-[11px] space-y-2 animate-in fade-in duration-200">
-              <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center justify-between">
-                <span>Telemetria RAG</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-              </div>
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-zinc-400">
-                  <span className="flex items-center gap-1.5">
-                    <Database className="w-3 h-3 text-cyan-400" /> Vector DB
-                  </span>
-                  <span className="font-mono text-zinc-200 text-[10px]">Qdrant (768d)</span>
-                </div>
-                <div className="flex items-center justify-between text-zinc-400">
-                  <span className="flex items-center gap-1.5">
-                    <Cpu className="w-3 h-3 text-blue-400" /> Core LLM
-                  </span>
-                  <span className="font-mono text-zinc-200 text-[10px]">Gemini 2.0 Flash</span>
-                </div>
-                <div className="flex items-center justify-between text-zinc-400">
-                  <span className="flex items-center gap-1.5">
-                    <Layers className="w-3 h-3 text-teal-400" /> Parser
-                  </span>
-                  <span className="font-mono text-zinc-200 text-[10px]">LlamaParse PDF</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-2 py-1">
-              <div className="p-2 rounded-lg bg-white/[0.04] text-cyan-400" title="Qdrant Vector Cluster (768d) Ativo">
-                <Database className="w-4 h-4" />
-              </div>
-            </div>
-          )}
+        {/* Sidebar Footer: Portfolio link */}
+        <div className="p-3 border-t border-white/10 mt-auto">
 
           <a 
             href="https://renan-nocelli.vercel.app/projetos/analista-financeiro-rag-llm" 
@@ -836,11 +792,9 @@ export default function Home() {
               <Upload className="w-3.5 h-3.5 text-cyan-400" /> Ingerir PDF
             </button>
             <div className="flex items-center gap-2 pl-2 border-l border-white/10">
-              <Avatar className="w-8 h-8 ring-2 ring-cyan-500/30 shadow-md">
-                <AvatarFallback className="bg-gradient-to-tr from-blue-600 via-cyan-600 to-teal-500 text-white font-extrabold text-xs">
-                  RN
-                </AvatarFallback>
-              </Avatar>
+              <div className="w-8 h-8 rounded-xl overflow-hidden ring-2 ring-cyan-500/30 shadow-md bg-[#090d16]">
+                <img src="/rn_financial_logo.jpg" alt="RN" className="w-full h-full object-cover" />
+              </div>
             </div>
           </div>
         </header>
@@ -895,12 +849,8 @@ export default function Home() {
                 <div className="p-6 sm:p-8 rounded-3xl bg-[#0b0f1a]/95 border border-white/10 backdrop-blur-xl shadow-2xl space-y-5">
                   <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div className="flex items-center gap-3.5">
-                      <div className="relative flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 via-cyan-500 to-teal-400 p-[1.5px] shadow-lg shadow-cyan-500/25 shrink-0">
-                        <div className="w-full h-full bg-[#090d16] rounded-[14px] flex items-center justify-center">
-                          <span className="font-extrabold text-base tracking-wider bg-gradient-to-r from-blue-400 via-cyan-300 to-teal-200 bg-clip-text text-transparent">
-                            RN
-                          </span>
-                        </div>
+                      <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl overflow-hidden ring-2 ring-cyan-500/40 shadow-xl shadow-cyan-500/25 shrink-0 bg-[#090d16]">
+                        <img src="/rn_financial_logo.jpg" alt="RN Intelligence" className="w-full h-full object-cover" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
@@ -1002,21 +952,17 @@ export default function Home() {
                   className={`flex gap-3.5 ${isUser ? "flex-row-reverse" : "flex-row"} group animate-in fade-in-50 duration-200`}
                 >
                   {/* Avatar */}
-                  <Avatar className={`w-9 h-9 mt-1 shrink-0 shadow-md ${
-                    isUser 
-                      ? "ring-2 ring-blue-500/30" 
-                      : "ring-2 ring-cyan-500/30"
-                  }`}>
-                    {isUser ? (
+                  {isUser ? (
+                    <Avatar className="w-9 h-9 mt-1 shrink-0 shadow-md ring-2 ring-blue-500/30">
                       <AvatarFallback className="bg-gradient-to-tr from-blue-700 to-indigo-700 text-white font-bold text-xs">
                         <User className="w-4 h-4" />
                       </AvatarFallback>
-                    ) : (
-                      <AvatarFallback className="bg-[#090d16] text-cyan-400 font-extrabold text-[11px] border border-cyan-500/40">
-                        RN
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
+                    </Avatar>
+                  ) : (
+                    <div className="w-9 h-9 rounded-xl overflow-hidden ring-2 ring-cyan-500/30 shadow-md mt-1 shrink-0 bg-[#090d16]">
+                      <img src="/rn_financial_logo.jpg" alt="RN" className="w-full h-full object-cover" />
+                    </div>
+                  )}
                   
                   {/* Bubble Container */}
                   <div className={`flex flex-col ${isUser ? "items-end" : "items-start"} max-w-[90%] sm:max-w-[85%]`}>
@@ -1114,11 +1060,9 @@ export default function Home() {
             {/* Loading / Qdrant Inference State */}
             {(isLoading || isUploading) && (
               <div className="flex gap-3.5 flex-row animate-in fade-in-50">
-                <Avatar className="w-9 h-9 mt-1 shrink-0 ring-2 ring-cyan-500/30 shadow-md">
-                  <AvatarFallback className="bg-[#090d16] text-cyan-400 font-extrabold text-[11px] border border-cyan-500/40">
-                    RN
-                  </AvatarFallback>
-                </Avatar>
+                <div className="w-9 h-9 rounded-xl overflow-hidden ring-2 ring-cyan-500/30 shadow-md mt-1 shrink-0 bg-[#090d16]">
+                  <img src="/rn_financial_logo.jpg" alt="RN" className="w-full h-full object-cover" />
+                </div>
                 <div className="flex flex-col items-start max-w-[85%]">
                   <div className="px-5 py-3.5 shadow-xl bg-[#0b0f1a]/95 border border-white/10 rounded-2xl rounded-tl-xs flex items-center gap-3">
                     <span className="flex gap-1">
