@@ -263,12 +263,7 @@ function getNextId(prefix: string): string {
 }
 
 export default function Home() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
-    if (typeof window !== "undefined") {
-      return window.innerWidth >= 1024;
-    }
-    return true;
-  });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sessions, setSessions] = useState<Session[]>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("rn_intelligence_financial_sessions_v3");
@@ -767,18 +762,9 @@ export default function Home() {
               )}
             </button>
 
-            <div className="flex flex-col min-w-0">
-              <div className="flex items-center gap-2.5">
-                <span className="font-bold text-white truncate text-sm sm:text-base tracking-tight">
-                  {activeSession?.title || "Auditoria Contábil & DRE"}
-                </span>
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
-                  <ShieldCheck className="w-3 h-3" /> Audit Mode
-                </span>
-              </div>
-              <span className="text-[11px] text-zinc-400 hidden sm:flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
-                RN Intelligence Core • Conexão Vetorial Qdrant Ativa
+            <div className="flex items-center min-w-0">
+              <span className="font-bold text-white truncate text-sm sm:text-base tracking-tight">
+                {activeSession?.title || "Auditoria Contábil & DRE"}
               </span>
             </div>
           </div>
