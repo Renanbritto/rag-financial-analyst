@@ -257,10 +257,11 @@ function FormattedFinancialContent({ content }: { content: string }) {
   );
 }
 
-let counter = 100;
 function getNextId(prefix: string): string {
-  counter += 1;
-  return `${prefix}-${counter}`;
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 }
 
 const emptySubscribe = () => () => {};
