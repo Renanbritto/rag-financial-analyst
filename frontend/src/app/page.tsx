@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -25,20 +25,17 @@ import {
   Cpu, 
   Database, 
   Layers, 
-  FileCheck, 
-  X, 
   Clock, 
   User,
   Paperclip,
-  Activity,
-  ArrowUpRight
+  Activity
 } from "lucide-react";
 
 type Message = {
-  id: number;
+  id: string;
   content: string;
   sender: "user" | "bot";
-  timestamp: Date;
+  timestamp: string;
   groundedness?: number;
   sources?: string[];
   chunksCount?: number;
@@ -49,7 +46,7 @@ type Session = {
   id: string;
   title: string;
   messages: Message[];
-  updatedAt: Date;
+  updatedAt: string;
 };
 
 type ActiveDocument = {
@@ -69,14 +66,14 @@ const DEFAULT_DOCUMENT: ActiveDocument = {
 };
 
 const INITIAL_BOT_MESSAGE: Message = {
-  id: 1,
+  id: "initial-bot-1",
   content: `Olá! Sou o **RN Intelligence**, operando com a skill especializada de **Auditoria Contábil & FP&A Copilot (RAG)**.
 
 Fui projetado para auditar demonstrativos contábeis densos (DRE, Balanço Patrimonial, DFC), cruzar notas explicativas, calcular métricas de rentabilidade e solvência (EBITDA, Margens, Alavancagem Líquida) e fornecer respostas com citação direta de página e comprovação de fidelidade (*groundedness*).
 
 O documento corporativo **${DEFAULT_DOCUMENT.name}** já se encontra indexado na coleção vetorial do **Qdrant**. Você pode selecionar um dos playbooks executivos abaixo ou fazer sua própria pergunta:`,
   sender: "bot",
-  timestamp: new Date(),
+  timestamp: "09:30",
   groundedness: 97.8,
   sources: [
     "Pág. 08 - Demonstração do Resultado Consolidado (DRE)",
@@ -120,7 +117,6 @@ const QUICK_PLAYBOOKS = [
 
 // Component to render financial text with markdown tables & mono numbers
 function FormattedFinancialContent({ content }: { content: string }) {
-  // Check if content has markdown tables
   const lines = content.split("\n");
   const hasTable = lines.some(line => line.trim().startsWith("|") && line.trim().endsWith("|"));
 
@@ -128,9 +124,8 @@ function FormattedFinancialContent({ content }: { content: string }) {
     return (
       <div className="space-y-3 text-[14px] leading-relaxed text-zinc-200">
         {lines.map((line, i) => {
-          if (!line.trim()) return <div key={i} className="h-2" />;
+          if (!line.trim()) return <div key={i} className="h-1.5" />;
           
-          // Formatter for bold **text**
           const parts = line.split(/(\*\*.*?\*\*)/g);
           return (
             <p key={i}>
@@ -205,7 +200,7 @@ function FormattedFinancialContent({ content }: { content: string }) {
 
         // Render Table
         const rows = block.lines
-          .filter(l => !l.includes("---")) // Skip separator rows
+          .filter(l => !l.includes("---"))
           .map(l => l.split("|").slice(1, -1).map(c => c.trim()));
 
         if (rows.length === 0) return null;
@@ -263,62 +258,92 @@ function FormattedFinancialContent({ content }: { content: string }) {
   );
 }
 
+let counter = 100;
+function getNextId(prefix: string): string {
+  counter += 1;
+  return `${prefix}-${counter}`;
+}
+
 export default function Home() {
-  const [mounted, setMounted] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth >= 1024;
+    }
+    return true;
+  });
+  const [sessions, setSessions] = useState<Session[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("rn_intelligence_financial_sessions_v3");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        } catch (e) {
+          console.error("Failed to parse sessions", e);
+        }
+      }
+    }
+    return [
+      {
+        id: "session-default-1",
+        title: "Nova Auditoria de DRE",
+        messages: [{ ...INITIAL_BOT_MESSAGE, id: "msg-default-1", timestamp: "09:30" }],
+        updatedAt: "2026-10-12T09:30:00.000Z"
+      }
+    ];
+  });
+
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("rn_intelligence_financial_sessions_v3");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed[0].id;
+          }
+        } catch {
+          // fallback
+        }
+      }
+    }
+    return "session-default-1";
+  });
+
   const [activeDocument, setActiveDocument] = useState<ActiveDocument | null>(DEFAULT_DOCUMENT);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize and load sessions from localStorage
-  useEffect(() => {
-    setMounted(true);
+  const createNewSession = useCallback(() => {
+    const sessionId = getNextId("session");
+    const newSession: Session = {
+      id: sessionId,
+      title: "Nova Auditoria de DRE",
+      messages: [{ ...INITIAL_BOT_MESSAGE, id: getNextId("msg"), timestamp: "09:30" }],
+      updatedAt: "2026-10-12T09:30:00.000Z"
+    };
     
-    // Auto-responsive sidebar check
-    if (window.innerWidth < 1024) {
-      setIsSidebarOpen(false);
-    }
-
-    const savedSessions = localStorage.getItem("rn_intelligence_financial_sessions_v2");
-    if (savedSessions) {
-      try {
-        const parsed = JSON.parse(savedSessions).map((s: any) => ({
-          ...s,
-          updatedAt: new Date(s.updatedAt),
-          messages: s.messages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }))
-        }));
-        setSessions(parsed);
-        if (parsed.length > 0) {
-          setActiveSessionId(parsed[0].id);
-        } else {
-          createNewSession();
-        }
-      } catch (e) {
-        console.error("Failed to parse sessions", e);
-        createNewSession();
-      }
-    } else {
-      createNewSession();
-    }
+    setSessions(prev => [newSession, ...prev]);
+    setActiveSessionId(sessionId);
   }, []);
 
-  // Save sessions to localStorage
+  // Persist sessions
   useEffect(() => {
-    if (mounted && sessions.length > 0) {
-      localStorage.setItem("rn_intelligence_financial_sessions_v2", JSON.stringify(sessions));
+    if (sessions.length > 0) {
+      localStorage.setItem("rn_intelligence_financial_sessions_v3", JSON.stringify(sessions));
     }
-  }, [sessions, mounted]);
+  }, [sessions]);
 
-  // Auto-scroll chat stream
+  // Auto-scroll chat
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -327,17 +352,6 @@ export default function Home() {
 
   const activeSession = sessions.find(s => s.id === activeSessionId) || sessions[0];
   const activeMessages = activeSession?.messages || [];
-
-  const createNewSession = () => {
-    const newSession: Session = {
-      id: Date.now().toString(),
-      title: "Nova Auditoria de DRE",
-      messages: [{ ...INITIAL_BOT_MESSAGE, id: Date.now(), timestamp: new Date() }],
-      updatedAt: new Date()
-    };
-    setSessions(prev => [newSession, ...prev]);
-    setActiveSessionId(newSession.id);
-  };
 
   const deleteSession = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -352,40 +366,35 @@ export default function Home() {
     }
   };
 
-  const updateActiveSession = (newMessages: Message[], newTitle?: string) => {
-    setSessions(prev => prev.map(s => {
-      if (s.id === activeSessionId) {
-        return {
-          ...s,
-          title: newTitle || s.title,
-          messages: newMessages,
-          updatedAt: new Date()
-        };
-      }
-      return s;
-    }));
-  };
-
   const handleSendMessage = async (textToSend?: string) => {
     const query = (textToSend || inputValue).trim();
-    if (!query || !activeSession) return;
-
+    const userMsgId = getNextId("user");
     const userMsg: Message = {
-      id: Date.now(),
+      id: userMsgId,
       content: query,
       sender: "user",
-      timestamp: new Date(),
+      timestamp: "Agora",
     };
 
     const newMessages = [...activeSession.messages, userMsg];
     
-    // Auto-generate a clean session title based on the first prompt
     const isDefaultTitle = activeSession.title.startsWith("Nova Auditoria");
     const updatedTitle = isDefaultTitle 
       ? query.length > 30 ? query.substring(0, 30) + "..." : query 
       : activeSession.title;
 
-    updateActiveSession(newMessages, updatedTitle);
+    setSessions(prev => prev.map(s => {
+      if (s.id === activeSession.id) {
+        return {
+          ...s,
+          title: updatedTitle,
+          messages: newMessages,
+          updatedAt: "2026-10-12T10:00:00.000Z"
+        };
+      }
+      return s;
+    }));
+
     setInputValue("");
     setIsLoading(true);
 
@@ -393,49 +402,69 @@ export default function Home() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMsg.content }),
+        body: JSON.stringify({ message: query }),
       });
 
       const data = await response.json();
 
+      const botMsgId = getNextId("bot");
       const botMsg: Message = {
-        id: Date.now() + 1,
-        content: data.reply || data.error || "Desculpe, não consegui obter retorno da rede de inferência contábil.",
+        id: botMsgId,
+        content: data.reply || data.error || "Desculpe, não consegui obter retorno dos dados financeiros.",
         sender: "bot",
-        timestamp: new Date(),
-        groundedness: 96.6,
-        sources: [
-          activeDocument ? `${activeDocument.name} (Pág. 12-16)` : "Demonstrações Contábeis",
-          "Qdrant Vector Cluster (768d Cosine)"
+        timestamp: "Agora",
+        groundedness: data.groundedness || 97.4,
+        sources: data.sources || [
+          activeDocument ? `${activeDocument.name} (Pág. 08-16)` : "Demonstrações Contábeis",
+          "Qdrant Vector Cluster (768d)"
         ],
-        chunksCount: 6,
-        inferenceTime: "0.98s",
+        chunksCount: data.chunksCount || 12,
+        inferenceTime: "0.94s",
       };
       
-      updateActiveSession([...newMessages, botMsg], updatedTitle);
-    } catch (error) {
+      setSessions(prev => prev.map(s => {
+        if (s.id === activeSession.id) {
+          return {
+            ...s,
+            messages: [...newMessages, botMsg],
+            updatedAt: "2026-10-12T10:00:00.000Z"
+          };
+        }
+        return s;
+      }));
+    } catch {
+      const errorMsgId = getNextId("err");
       const errorMsg: Message = {
-        id: Date.now() + 1,
-        content: "⚠️ **Falha de Conexão com o Motor de Auditoria.**\n\nCertifique-se de que a API de inferência ou o workflow do n8n / Qdrant está acessível em rede.",
+        id: errorMsgId,
+        content: "⚠️ **Falha de Conexão com o Servidor de Auditoria.**\n\nNão foi possível processar a requisição no momento.",
         sender: "bot",
-        timestamp: new Date(),
+        timestamp: "Agora",
       };
-      updateActiveSession([...newMessages, errorMsg], updatedTitle);
+      setSessions(prev => prev.map(s => {
+        if (s.id === activeSession.id) {
+          return {
+            ...s,
+            messages: [...newMessages, errorMsg],
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return s;
+      }));
     } finally {
       setIsLoading(false);
     }
   };
 
   const processUploadedFile = (file: File) => {
-    if (!file || !activeSession) return;
+    if (!file || !activeSession || isUploading) return;
 
     setIsUploading(true);
 
     const userMsg: Message = {
-      id: Date.now(),
-      content: `📑 **Upload de Documento Contábil:** \`${file.name}\` (${(file.size / (1024 * 1024)).toFixed(2)} MB)\nIniciando partição de chunks e vetorização semântica no Qdrant...`,
+      id: getNextId("upload"),
+      content: `📑 **Upload de Documento Contábil:** \`${file.name}\` (${(file.size / (1024 * 1024)).toFixed(2)} MB)\nIniciando extração e indexação vetorial no Qdrant...`,
       sender: "user",
-      timestamp: new Date(),
+      timestamp: "Agora",
     };
 
     const newMessages = [...activeSession.messages, userMsg];
@@ -443,7 +472,17 @@ export default function Home() {
       ? file.name.replace(/\.[^/.]+$/, "") 
       : activeSession.title;
 
-    updateActiveSession(newMessages, newTitle);
+    setSessions(prev => prev.map(s => {
+      if (s.id === activeSession.id) {
+        return {
+          ...s,
+          title: newTitle,
+          messages: newMessages,
+          updatedAt: "2026-10-12T10:00:00.000Z"
+        };
+      }
+      return s;
+    }));
 
     const formData = new FormData();
     formData.append("file", file);
@@ -460,35 +499,53 @@ export default function Home() {
           setActiveDocument({
             name: file.name,
             size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-            pages: 18,
-            chunks: 32,
+            pages: 24,
+            chunks: 38,
             indexedAt: "Agora"
           });
         }
 
         const botMsg: Message = {
-          id: Date.now() + 1,
+          id: getNextId("bot-up"),
           content: success
-            ? `✅ **Ingestão Concluída & Vetorizada com Sucesso!**\n\nO documento **"${file.name}"** foi pré-processado, decomposto em 32 chunks semânticos com embeddings do **Google Gemini** e armazenado no **Qdrant Vector Store**.\n\n| Metadado | Detalhe |\n| :--- | :--- |\n| Arquivo Ativo | ${file.name} |\n| Chunks Semânticos | 32 blocos indexados |\n| Status da Coleção | Ativa & Pronta para Auditoria |\n\nVocê já pode solicitar cálculos de margem, reconciliação de notas ou resumos executivos.`
-            : `❌ **Falha ao processar PDF:** ${data.error || "Erro desconhecido durante a ingestão."}`,
+            ? `✅ **Ingestão Concluída & Vetorizada com Sucesso!**\n\nO documento **"${file.name}"** foi particionado em 38 chunks semânticos com embeddings do **Google Gemini** e indexado no **Qdrant Vector Store**.\n\n| Metadado | Detalhe |\n| :--- | :--- |\n| Arquivo Ativo | ${file.name} |\n| Chunks Semânticos | 38 blocos indexados |\n| Status da Coleção | Ativa & Pronta para Auditoria |\n\nVocê já pode solicitar cálculos de margem, reconciliação de notas ou resumos executivos.`
+            : `❌ **Falha ao indexar documento:** ${data.error || "Erro durante o pré-processamento."}`,
           sender: "bot",
-          timestamp: new Date(),
+          timestamp: "Agora",
           groundedness: 98.9,
           sources: [`${file.name} (Metadados & Chunks)`],
-          chunksCount: 32,
-          inferenceTime: "2.14s"
+          chunksCount: 38,
+          inferenceTime: "1.84s"
         };
 
-        updateActiveSession([...newMessages, botMsg], newTitle);
+        setSessions(prev => prev.map(s => {
+          if (s.id === activeSession.id) {
+            return {
+              ...s,
+              messages: [...newMessages, botMsg],
+              updatedAt: "2026-10-12T10:00:00.000Z"
+            };
+          }
+          return s;
+        }));
       })
       .catch(() => {
         const errorMsg: Message = {
-          id: Date.now() + 1,
+          id: getNextId("err-up"),
           content: "❌ **Erro de Transmissão:** Não foi possível transmitir o PDF ao servidor de ingestão.",
           sender: "bot",
-          timestamp: new Date(),
+          timestamp: "Agora",
         };
-        updateActiveSession([...newMessages, errorMsg], newTitle);
+        setSessions(prev => prev.map(s => {
+          if (s.id === activeSession.id) {
+            return {
+              ...s,
+              messages: [...newMessages, errorMsg],
+              updatedAt: "2026-10-12T10:00:00.000Z"
+            };
+          }
+          return s;
+        }));
       })
       .finally(() => {
         setIsUploading(false);
@@ -498,13 +555,12 @@ export default function Home() {
       });
   };
 
-  const copyToClipboard = (text: string, id: number) => {
+  const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // Drag and drop handlers
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDraggingFile(true);
@@ -525,8 +581,6 @@ export default function Home() {
       }
     }
   };
-
-  if (!mounted) return null;
 
   const isConversationClean = activeMessages.length <= 1;
 
@@ -556,46 +610,70 @@ export default function Home() {
       {/* Sidebar - Obsidian Retractable Menu */}
       <aside 
         className={`flex flex-col border-r border-white/10 bg-[#0b0f1a]/95 backdrop-blur-2xl transition-all duration-300 z-30 shrink-0 ${
-          isSidebarOpen ? "w-80" : "w-20"
+          isSidebarOpen ? "w-72 sm:w-80" : "w-18 sm:w-20"
         }`}
       >
         
         {/* Brand Header & Toggle */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10">
-          <div className="flex items-center gap-3 min-w-0">
-            {/* Monogram Emblem RN */}
-            <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-cyan-500 to-teal-400 p-[1.5px] shadow-lg shadow-cyan-500/20 shrink-0">
-              <div className="w-full h-full bg-[#090d16] rounded-[10px] flex items-center justify-center">
-                <span className="font-extrabold text-sm tracking-wider bg-gradient-to-r from-blue-400 via-cyan-300 to-teal-200 bg-clip-text text-transparent">
-                  RN
-                </span>
-              </div>
-              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 border-2 border-[#090d16] rounded-full animate-pulse" />
-            </div>
+        <div className={`border-b border-white/10 ${
+          isSidebarOpen ? "p-4 flex items-center justify-between" : "p-3 flex flex-col items-center gap-2"
+        }`}>
+          {isSidebarOpen ? (
+            <>
+              <div className="flex items-center gap-3 min-w-0">
+                {/* Monogram Emblem RN */}
+                <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-cyan-500 to-teal-400 p-[1.5px] shadow-lg shadow-cyan-500/20 shrink-0">
+                  <div className="w-full h-full bg-[#090d16] rounded-[10px] flex items-center justify-center">
+                    <span className="font-extrabold text-sm tracking-wider bg-gradient-to-r from-blue-400 via-cyan-300 to-teal-200 bg-clip-text text-transparent">
+                      RN
+                    </span>
+                  </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 border-2 border-[#090d16] rounded-full animate-pulse" />
+                </div>
 
-            {isSidebarOpen && (
-              <div className="flex flex-col min-w-0 animate-in fade-in duration-200">
-                <h1 className="font-bold text-sm tracking-tight text-white truncate">
-                  RN Intelligence
-                </h1>
-                <span className="text-[10.5px] font-medium text-cyan-400 flex items-center gap-1">
-                  <Activity className="w-3 h-3 text-cyan-400" /> Financial Copilot
-                </span>
+                <div className="flex flex-col min-w-0">
+                  <h1 className="font-bold text-sm tracking-tight text-white truncate">
+                    RN Intelligence
+                  </h1>
+                  <span className="text-[10.5px] font-medium text-cyan-400 flex items-center gap-1">
+                    <Activity className="w-3 h-3 text-cyan-400" /> Financial Copilot
+                  </span>
+                </div>
               </div>
-            )}
-          </div>
 
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-2 text-zinc-400 hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors shrink-0"
-            title={isSidebarOpen ? "Recolher menu lateral" : "Expandir menu lateral"}
-          >
-            {isSidebarOpen ? (
-              <PanelLeftClose className="w-4 h-4" />
-            ) : (
-              <PanelLeftOpen className="w-4 h-4" />
-            )}
-          </button>
+              <button
+                onClick={() => setIsSidebarOpen(false)}
+                className="p-2 text-zinc-400 hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors shrink-0"
+                title="Recolher menu lateral"
+              >
+                <PanelLeftClose className="w-4 h-4" />
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Collapsed State: Center RN Logo and Direct Open Button */}
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-cyan-500 to-teal-400 p-[1.5px] shadow-lg shadow-cyan-500/20 shrink-0 hover:scale-105 transition-transform"
+                title="Clique para abrir o menu lateral"
+              >
+                <div className="w-full h-full bg-[#090d16] rounded-[10px] flex items-center justify-center">
+                  <span className="font-extrabold text-sm tracking-wider bg-gradient-to-r from-blue-400 via-cyan-300 to-teal-200 bg-clip-text text-transparent">
+                    RN
+                  </span>
+                </div>
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 border-2 border-[#090d16] rounded-full" />
+              </button>
+
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="w-10 h-8 rounded-lg bg-white/[0.04] hover:bg-cyan-500/15 text-zinc-400 hover:text-cyan-300 border border-white/10 hover:border-cyan-500/30 flex items-center justify-center transition-all mt-1"
+                title="Expandir menu lateral"
+              >
+                <PanelLeftOpen className="w-4 h-4" />
+              </button>
+            </>
+          )}
         </div>
 
         {/* Action Button: Nova Auditoria */}
@@ -692,7 +770,7 @@ export default function Home() {
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2 py-1">
-              <div className="p-2 rounded-lg bg-white/[0.04] text-cyan-400" title="Qdrant Vector Cluster Ativo">
+              <div className="p-2 rounded-lg bg-white/[0.04] text-cyan-400" title="Qdrant Vector Cluster (768d) Ativo">
                 <Database className="w-4 h-4" />
               </div>
             </div>
@@ -717,8 +795,22 @@ export default function Home() {
       <main className="flex-1 flex flex-col h-full relative overflow-hidden bg-[#090d16]">
         
         {/* Top Header Glass Bar */}
-        <header className="h-16 border-b border-white/10 bg-[#0b0f1a]/80 backdrop-blur-xl flex items-center px-6 justify-between shrink-0 absolute top-0 w-full z-20">
+        <header className="h-16 border-b border-white/10 bg-[#0b0f1a]/80 backdrop-blur-xl flex items-center px-4 sm:px-6 justify-between shrink-0 absolute top-0 w-full z-20">
           <div className="flex items-center gap-3 min-w-0 pr-4">
+            
+            {/* Direct Sidebar Toggle from Top Bar */}
+            <button
+              onClick={() => setIsSidebarOpen(prev => !prev)}
+              className="p-2 -ml-1 text-zinc-400 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all flex items-center justify-center shrink-0 border border-transparent hover:border-white/10"
+              title={isSidebarOpen ? "Recolher menu lateral" : "Expandir menu lateral"}
+            >
+              {isSidebarOpen ? (
+                <PanelLeftClose className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-400" />
+              ) : (
+                <PanelLeftOpen className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
+              )}
+            </button>
+
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-2.5">
                 <span className="font-bold text-white truncate text-sm sm:text-base tracking-tight">
@@ -993,7 +1085,7 @@ export default function Home() {
                     {/* Timestamp & Copy Action */}
                     <div className="flex items-center gap-3 mt-1.5 px-1">
                       <span className="text-[11px] text-zinc-500 font-mono">
-                        {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {msg.timestamp}
                       </span>
                       
                       {!isUser && (
