@@ -9,8 +9,8 @@ const comfortaa = Comfortaa({
 });
 
 export const metadata: Metadata = {
-  title: "RAG Financial Analyst",
-  description: "Sistema RAG Full-Stack para análise financeira com IA.",
+  title: "RN Intelligence • Analista Financeiro RAG & DRE",
+  description: "RN Intelligence com Skill de Análise Financeira Corporativa. RAG Full-Stack com Qdrant e Google Gemini.",
 };
 
 export default function RootLayout({
