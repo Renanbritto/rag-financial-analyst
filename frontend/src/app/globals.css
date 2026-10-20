@@ -99,9 +99,20 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
     background-color: #090d16;
     color: #f4f4f5;
+    overscroll-behavior-y: none;
+  }
+  /* Prevent iOS Safari automatic zoom on focus while keeping design sharp */
+  @media (max-width: 768px) {
+    input, textarea, select {
+      font-size: 16px !important;
+    }
   }
 }
 

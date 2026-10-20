@@ -27,7 +27,9 @@ import {
   Paperclip,
   Activity,
   Download,
-  FileCheck
+  FileCheck,
+  Menu,
+  X
 } from "lucide-react";
 
 type Message = {
@@ -121,17 +123,17 @@ function FormattedFinancialContent({ content }: { content: string }) {
 
   if (!hasTable) {
     return (
-      <div className="space-y-3 text-[14px] leading-relaxed text-zinc-200">
+      <div className="space-y-2.5 sm:space-y-3 text-[13px] sm:text-[14px] leading-relaxed text-zinc-200 break-words">
         {lines.map((line, i) => {
           if (!line.trim()) return <div key={i} className="h-1.5" />;
           
           const parts = line.split(/(\*\*.*?\*\*)/g);
           return (
-            <p key={i}>
+            <p key={i} className="break-words">
               {parts.map((part, pIdx) => {
                 if (part.startsWith("**") && part.endsWith("**")) {
                   return (
-                    <strong key={pIdx} className="font-semibold text-white">
+                    <strong key={pIdx} className="font-semibold text-white break-words">
                       {part.slice(2, -2)}
                     </strong>
                   );
@@ -170,7 +172,7 @@ function FormattedFinancialContent({ content }: { content: string }) {
   if (currentBlock) blocks.push(currentBlock);
 
   return (
-    <div className="space-y-4 text-[14px] leading-relaxed text-zinc-200">
+    <div className="space-y-3 sm:space-y-4 text-[13px] sm:text-[14px] leading-relaxed text-zinc-200 break-words">
       {blocks.map((block, bIdx) => {
         if (block.type === "text") {
           return (
@@ -179,11 +181,11 @@ function FormattedFinancialContent({ content }: { content: string }) {
                 if (!line.trim()) return <div key={lIdx} className="h-1.5" />;
                 const parts = line.split(/(\*\*.*?\*\*)/g);
                 return (
-                  <p key={lIdx}>
+                  <p key={lIdx} className="break-words">
                     {parts.map((part, pIdx) => {
                       if (part.startsWith("**") && part.endsWith("**")) {
                         return (
-                          <strong key={pIdx} className="font-semibold text-white">
+                          <strong key={pIdx} className="font-semibold text-white break-words">
                             {part.slice(2, -2)}
                           </strong>
                         );
@@ -207,14 +209,14 @@ function FormattedFinancialContent({ content }: { content: string }) {
         const dataRows = rows.slice(1);
 
         return (
-          <div key={bIdx} className="my-3 overflow-x-auto rounded-xl border border-white/10 bg-[#090d16]/80 backdrop-blur-md shadow-lg">
-            <table className="w-full text-left text-xs border-collapse">
+          <div key={bIdx} className="my-2.5 sm:my-3 overflow-x-auto rounded-xl border border-white/10 bg-[#090d16]/80 backdrop-blur-md shadow-lg -mx-1 sm:mx-0 max-w-full">
+            <table className="w-full text-left text-[11px] sm:text-xs border-collapse min-w-[320px] sm:min-w-0">
               <thead>
                 <tr className="border-b border-white/10 bg-[#0e1526]/90">
                   {headers.map((h, hIdx) => (
                     <th 
                       key={hIdx} 
-                      className={`px-3.5 py-2.5 font-bold tracking-wider text-cyan-300 uppercase text-[11px] ${
+                      className={`px-2.5 sm:px-3.5 py-2 sm:py-2.5 font-bold tracking-wider text-cyan-300 uppercase text-[10px] sm:text-[11px] ${
                         hIdx > 0 ? "text-right font-mono" : "text-left"
                       }`}
                     >
@@ -234,7 +236,7 @@ function FormattedFinancialContent({ content }: { content: string }) {
                       return (
                         <td 
                           key={cIdx} 
-                          className={`px-3.5 py-2 text-zinc-300 ${
+                          className={`px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-zinc-300 ${
                             cIdx > 0 ? "text-right font-mono font-medium" : "text-left font-medium text-zinc-100"
                           } ${
                             isPositive && cIdx > 1 ? "text-emerald-400 font-semibold" : ""
@@ -268,6 +270,7 @@ const emptySubscribe = () => () => {};
 
 export default function Home() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const isMounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const [sessions, setSessions] = useState<Session[]>([
     {
@@ -336,6 +339,7 @@ export default function Home() {
 
     if (currentActive && !hasUserInteraction) {
       setInputValue("");
+      setIsMobileDrawerOpen(false);
       return;
     }
 
@@ -351,6 +355,7 @@ export default function Home() {
     setSessions(prev => [newSession, ...prev]);
     setActiveSessionId(sessionId);
     setInputValue("");
+    setIsMobileDrawerOpen(false);
   }, [sessions, activeSessionId]);
 
   const clearAllSessions = useCallback(() => {
@@ -364,6 +369,7 @@ export default function Home() {
     setSessions([freshSession]);
     setActiveSessionId(freshId);
     setInputValue("");
+    setIsMobileDrawerOpen(false);
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("rn_intelligence_financial_sessions_v4", JSON.stringify([freshSession]));
@@ -666,7 +672,7 @@ export default function Home() {
 
   return (
     <div 
-      className="flex h-screen bg-[#090d16] text-zinc-100 font-sans selection:bg-cyan-500/30 overflow-hidden relative"
+      className="flex h-[100dvh] bg-[#090d16] text-zinc-100 font-sans selection:bg-cyan-500/30 overflow-hidden relative"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -687,9 +693,135 @@ export default function Home() {
         </div>
       )}
 
-      {/* Sidebar - Obsidian Retractable Menu */}
+      {/* Mobile Drawer Backdrop */}
+      {isMobileDrawerOpen && (
+        <div 
+          onClick={() => setIsMobileDrawerOpen(false)}
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 md:hidden animate-in fade-in duration-200"
+        />
+      )}
+
+      {/* Mobile Drawer (Side sheet for small screens) */}
       <aside 
-        className={`flex flex-col border-r border-white/10 bg-[#0b0f1a]/95 backdrop-blur-2xl transition-all duration-300 z-30 shrink-0 ${
+        className={`fixed inset-y-0 left-0 w-[85%] max-w-[320px] bg-[#0b0f1a] border-r border-white/10 z-50 flex flex-col p-4 shadow-2xl transition-transform duration-300 md:hidden ${
+          isMobileDrawerOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"
+        }`}
+      >
+        {/* Drawer Brand Header */}
+        <div className="flex items-center justify-between pb-3.5 border-b border-white/10">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="relative flex items-center justify-center w-10 h-10 rounded-xl overflow-hidden ring-1 ring-cyan-500/40 shadow-lg shadow-cyan-500/20 shrink-0 bg-[#090d16]">
+              <img src="/rn_financial_logo.jpg" alt="RN Intelligence" className="w-full h-full object-cover" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 border-2 border-[#090d16] rounded-full animate-pulse" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <h1 className="font-bold text-sm tracking-tight text-white truncate">
+                RN Intelligence
+              </h1>
+              <span className="text-[10.5px] font-medium text-cyan-400 flex items-center gap-1">
+                <Activity className="w-3 h-3 text-cyan-400" /> Financial Copilot
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsMobileDrawerOpen(false)}
+            className="p-2 text-zinc-400 hover:text-white hover:bg-white/[0.08] rounded-xl transition-colors shrink-0"
+            title="Fechar menu lateral"
+            aria-label="Fechar menu"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Action Button: Nova Auditoria in Drawer */}
+        <div className="py-3">
+          <Button 
+            onClick={() => {
+              createNewSession();
+              setIsMobileDrawerOpen(false);
+            }}
+            className="w-full bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 hover:from-blue-500 hover:via-cyan-500 hover:to-teal-500 text-white shadow-lg shadow-cyan-500/20 rounded-xl h-10 border-0 font-medium transition-all justify-start px-3.5"
+            title="Nova Auditoria"
+          >
+            <Plus className="w-4 h-4 shrink-0" />
+            <span className="ml-2 text-xs font-semibold">Nova Auditoria</span>
+          </Button>
+        </div>
+
+        {/* Sessions List in Drawer */}
+        <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+          <div className="flex items-center justify-between mb-2 px-1 text-[10px] font-bold text-zinc-500 uppercase tracking-widest shrink-0">
+            <span>Auditorias Salvas</span>
+            <div className="flex items-center gap-1.5">
+              <span className="px-1.5 py-0.5 rounded-md bg-white/[0.06] text-zinc-300 font-mono">
+                {sessions.length}
+              </span>
+              {sessions.length > 1 && (
+                <button
+                  onClick={clearAllSessions}
+                  className="text-[10px] text-zinc-400 hover:text-rose-400 hover:underline transition-colors ml-1"
+                  title="Redefinir todas as sessões"
+                >
+                  Limpar
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-1 pr-1">
+            {sessions.map((session) => {
+              const isActive = activeSessionId === session.id;
+              const displayTitle = session.title?.trim() || "Nova Auditoria";
+              return (
+                <div 
+                  key={session.id}
+                  onClick={() => {
+                    setActiveSessionId(session.id);
+                    setIsMobileDrawerOpen(false);
+                  }}
+                  className={`group flex items-center justify-between w-full rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer border px-3 py-2.5 ${
+                    isActive 
+                      ? "bg-white/[0.08] border-cyan-500/40 text-cyan-300 shadow-sm font-semibold" 
+                      : "border-transparent text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200"
+                  }`}
+                >
+                  <div className="flex items-center truncate min-w-0 pr-1">
+                    <MessageSquare className={`w-3.5 h-3.5 shrink-0 mr-2.5 ${isActive ? "text-cyan-400" : "text-zinc-500"}`} />
+                    <span className="truncate">{displayTitle}</span>
+                  </div>
+                  {sessions.length > 1 && (
+                    <button 
+                      onClick={(e) => deleteSession(session.id, e)}
+                      className="p-1 hover:bg-rose-950/60 text-zinc-500 hover:text-rose-400 rounded-md transition-all shrink-0 ml-1"
+                      title="Excluir auditoria"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Drawer Footer */}
+        <div className="pt-3 border-t border-white/10 mt-auto shrink-0">
+          <a 
+            href="https://renan-nocelli.vercel.app/projetos/analista-financeiro-rag-llm" 
+            target="_blank" 
+            rel="noreferrer"
+            className="flex items-center justify-between text-xs font-medium rounded-xl p-2.5 text-zinc-400 hover:text-cyan-300 hover:bg-white/[0.04] transition-colors border border-white/5"
+            title="Ver Case no Portfólio Oficial"
+          >
+            <span>Portfólio Oficial</span>
+            <ExternalLink className="w-3.5 h-3.5 text-cyan-400" />
+          </a>
+        </div>
+      </aside>
+
+      {/* Desktop Sidebar - Retractable (hidden on mobile) */}
+      <aside 
+        className={`hidden md:flex flex-col border-r border-white/10 bg-[#0b0f1a]/95 backdrop-blur-2xl transition-all duration-300 z-30 shrink-0 ${
           isSidebarOpen ? "w-72 sm:w-80" : "w-18 sm:w-20"
         }`}
       >
@@ -823,7 +955,6 @@ export default function Home() {
 
         {/* Sidebar Footer: Portfolio link */}
         <div className="p-3 border-t border-white/10 mt-auto shrink-0">
-
           <a 
             href="https://renan-nocelli.vercel.app/projetos/analista-financeiro-rag-llm" 
             target="_blank" 
@@ -843,29 +974,40 @@ export default function Home() {
       <main className="flex-1 flex flex-col h-full relative overflow-hidden bg-[#090d16]">
         
         {/* Top Header Glass Bar */}
-        <header className="h-16 border-b border-white/10 bg-[#0b0f1a]/80 backdrop-blur-xl flex items-center px-4 sm:px-6 justify-between shrink-0 absolute top-0 w-full z-20">
-          <div className="flex items-center gap-3 min-w-0 pr-4">
+        <header className="h-14 sm:h-16 border-b border-white/10 bg-[#0b0f1a]/85 backdrop-blur-xl flex items-center px-3 sm:px-6 justify-between shrink-0 absolute top-0 w-full z-20">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 pr-2 sm:pr-4">
             
-            {/* Direct Sidebar Toggle: Only displayed when sidebar is closed to avoid duplicate buttons */}
+            {/* Mobile Menu Trigger */}
+            <button
+              onClick={() => setIsMobileDrawerOpen(true)}
+              className="p-2 -ml-1 text-zinc-300 hover:text-white hover:bg-white/[0.08] active:bg-cyan-500/20 rounded-xl transition-all flex items-center justify-center shrink-0 border border-white/10 md:hidden"
+              title="Abrir menu de auditorias"
+              aria-label="Abrir menu"
+            >
+              <Menu className="w-5 h-5 text-cyan-400" />
+            </button>
+
+            {/* Desktop Sidebar Toggle */}
             {!isSidebarOpen && (
               <button
                 onClick={() => setIsSidebarOpen(true)}
-                className="p-2 -ml-1 text-zinc-400 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all flex items-center justify-center shrink-0 border border-transparent hover:border-white/10"
+                className="hidden md:flex p-2 -ml-1 text-zinc-400 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all items-center justify-center shrink-0 border border-transparent hover:border-white/10"
                 title="Expandir menu lateral"
               >
                 <PanelLeftOpen className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
               </button>
             )}
 
-            <div className="flex items-center min-w-0">
-              <span className="font-bold text-white truncate text-sm sm:text-base tracking-tight">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 animate-pulse md:hidden" />
+              <span className="font-bold text-white truncate text-xs sm:text-base tracking-tight">
                 {activeSession?.title || "Auditoria Contábil & DRE"}
               </span>
             </div>
           </div>
 
           {/* Top Actions: Upload Trigger & Profile */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             <a
               href="/exemplo-dre-4t24.pdf"
               download="DRE_Consolidada_Auditoria_4T24.pdf"
@@ -881,8 +1023,18 @@ export default function Home() {
             >
               <Upload className="w-3.5 h-3.5 text-cyan-400" /> Ingerir PDF
             </button>
-            <div className="flex items-center gap-2 pl-2 border-l border-white/10">
-              <div className="w-8 h-8 rounded-xl overflow-hidden ring-2 ring-cyan-500/30 shadow-md bg-[#090d16]">
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="sm:hidden p-2 text-zinc-300 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 rounded-xl transition-all"
+              title="Ingerir PDF contábil"
+              aria-label="Ingerir PDF"
+            >
+              <Upload className="w-4 h-4 text-cyan-400" />
+            </button>
+
+            <div className="flex items-center gap-2 pl-1.5 sm:pl-2 border-l border-white/10">
+              <div className="w-8 h-8 rounded-xl overflow-hidden ring-2 ring-cyan-500/30 shadow-md bg-[#090d16] shrink-0">
                 <img src="/rn_financial_logo.jpg" alt="RN" className="w-full h-full object-cover" />
               </div>
             </div>
@@ -890,51 +1042,51 @@ export default function Home() {
         </header>
 
         {/* Chat & Document Area */}
-        <div className="flex-1 w-full pt-20 pb-44 px-4 md:px-8 overflow-y-auto" ref={scrollRef}>
-          <div className="max-w-4xl mx-auto space-y-6 pt-2 pb-6">
+        <div className="flex-1 w-full pt-16 sm:pt-20 pb-36 sm:pb-44 px-3 sm:px-6 md:px-8 overflow-y-auto" ref={scrollRef}>
+          <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 pt-1 sm:pt-2 pb-6">
             
             {/* Active Document Inspector Card */}
             {activeDocument && (
-              <div className="rounded-2xl bg-[#0b0f1a]/90 border border-white/10 p-4 shadow-xl backdrop-blur-md flex items-center justify-between gap-4 flex-wrap animate-in fade-in duration-300">
+              <div className="rounded-2xl bg-[#0b0f1a]/90 border border-white/10 p-3 sm:p-4 shadow-xl backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 animate-in fade-in duration-300">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
-                    <FileSpreadsheet className="w-5 h-5" />
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+                    <FileSpreadsheet className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-white text-xs sm:text-sm truncate">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                      <span className="font-semibold text-white text-xs sm:text-sm truncate max-w-[180px] sm:max-w-none">
                         {activeDocument.name}
                       </span>
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono shrink-0">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        Vetorizado (Qdrant 768d)
+                        Qdrant 768d
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 text-[11px] text-zinc-400 mt-0.5 font-mono">
+                    <div className="flex items-center gap-2 sm:gap-3 text-[10.5px] sm:text-[11px] text-zinc-400 mt-0.5 font-mono flex-wrap">
                       <span>{activeDocument.size}</span>
                       <span>•</span>
-                      <span>{activeDocument.pages} páginas</span>
+                      <span>{activeDocument.pages} págs</span>
                       <span>•</span>
-                      <span>{activeDocument.chunks} chunks indexados</span>
+                      <span>{activeDocument.chunks} chunks</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 ml-auto">
+                <div className="flex items-center gap-2 w-full sm:w-auto pt-2 sm:pt-0 border-t border-white/5 sm:border-t-0">
                   <a
                     href="/exemplo-dre-4t24.pdf"
                     download="DRE_Consolidada_Auditoria_4T24.pdf"
-                    className="text-xs font-medium px-3 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition-colors flex items-center gap-1.5"
+                    className="flex-1 sm:flex-initial text-center justify-center text-xs font-medium px-3 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition-colors flex items-center gap-1.5"
                     title="Baixar cópia do PDF de exemplo"
                   >
-                    <Download className="w-3 h-3" /> Baixar PDF
+                    <Download className="w-3.5 h-3.5" /> Baixar PDF
                   </a>
 
                   <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="text-xs font-medium px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white border border-white/10 transition-colors flex items-center gap-1.5"
+                    className="flex-1 sm:flex-initial text-center justify-center text-xs font-medium px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white border border-white/10 transition-colors flex items-center gap-1.5"
                   >
-                    <Upload className="w-3 h-3 text-cyan-400" /> Trocar PDF
+                    <Upload className="w-3.5 h-3.5 text-cyan-400" /> Trocar PDF
                   </button>
                 </div>
               </div>
@@ -942,26 +1094,26 @@ export default function Home() {
 
             {/* Empty/Welcome Hero when session is fresh */}
             {isConversationClean && (
-              <div className="space-y-6 animate-in fade-in-50 duration-500">
+              <div className="space-y-4 sm:space-y-6 animate-in fade-in-50 duration-500">
                 
                 {/* Hero Header */}
-                <div className="p-6 sm:p-8 rounded-3xl bg-[#0b0f1a]/95 border border-white/10 backdrop-blur-xl shadow-2xl space-y-5">
+                <div className="p-4 sm:p-8 rounded-2xl sm:rounded-3xl bg-[#0b0f1a]/95 border border-white/10 backdrop-blur-xl shadow-2xl space-y-4 sm:space-y-5">
                   <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <div className="flex items-center gap-3.5">
-                      <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl overflow-hidden ring-2 ring-cyan-500/40 shadow-xl shadow-cyan-500/25 shrink-0 bg-[#090d16]">
+                    <div className="flex items-center gap-3 sm:gap-3.5">
+                      <div className="relative flex items-center justify-center w-11 h-11 sm:w-14 sm:h-14 rounded-2xl overflow-hidden ring-2 ring-cyan-500/40 shadow-xl shadow-cyan-500/25 shrink-0 bg-[#090d16]">
                         <img src="/rn_financial_logo.jpg" alt="RN Intelligence" className="w-full h-full object-cover" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+                          <h2 className="text-lg sm:text-2xl font-extrabold text-white tracking-tight">
                             RN Intelligence
                           </h2>
-                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+                          <span className="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
                             v2.4 FP&A
                           </span>
                         </div>
-                        <p className="text-xs sm:text-sm text-zinc-400">
-                          Skill de Auditoria Contábil, Demonstrações Financeiras & RAG com Memória Vetorial
+                        <p className="text-[11px] sm:text-sm text-zinc-400">
+                          Skill de Auditoria Contábil, Demonstrações Financeiras & RAG
                         </p>
                       </div>
                     </div>
@@ -972,7 +1124,7 @@ export default function Home() {
                   </p>
 
                   {/* 4 Clickable Executive Playbooks */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 pt-1">
                     {QUICK_PLAYBOOKS.map((item, index) => {
                       const Icon = item.icon;
                       const borderColors = {
@@ -1001,21 +1153,21 @@ export default function Home() {
                           key={index}
                           onClick={() => handleSendMessage(item.prompt)}
                           disabled={isLoading || isUploading}
-                          className={`group text-left p-4 rounded-2xl bg-[#090d16]/80 border border-white/10 ${borderColors} transition-all duration-200 flex flex-col justify-between gap-2.5 shadow-md`}
+                          className={`group text-left p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-[#090d16]/80 border border-white/10 ${borderColors} transition-all duration-200 flex flex-col justify-between gap-2 shadow-md active:scale-[0.99]`}
                         >
-                          <div className="flex items-center justify-between w-full">
-                            <span className="inline-flex items-center gap-2 text-xs font-bold text-zinc-100 group-hover:text-white transition-colors">
-                              <Icon className={`w-4 h-4 ${iconColors}`} />
-                              {item.title}
+                          <div className="flex items-center justify-between w-full gap-2">
+                            <span className="inline-flex items-center gap-2 text-xs font-bold text-zinc-100 group-hover:text-white transition-colors truncate">
+                              <Icon className={`w-4 h-4 shrink-0 ${iconColors}`} />
+                              <span className="truncate">{item.title}</span>
                             </span>
-                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${tagStyles}`}>
+                            <span className={`text-[9.5px] sm:text-[10px] uppercase font-bold px-1.5 sm:px-2 py-0.5 rounded-full border shrink-0 ${tagStyles}`}>
                               {item.tag}
                             </span>
                           </div>
-                          <p className="text-[12px] text-zinc-400 line-clamp-2 leading-relaxed">
+                          <p className="text-[11.5px] sm:text-[12px] text-zinc-400 line-clamp-2 leading-relaxed">
                             {item.prompt}
                           </p>
-                          <span className="text-[11px] font-semibold text-cyan-400 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity pt-1">
+                          <span className="text-[10.5px] sm:text-[11px] font-semibold text-cyan-400 flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity pt-0.5">
                             Auditar agora <ArrowRight className="w-3 h-3" />
                           </span>
                         </button>
@@ -1027,7 +1179,7 @@ export default function Home() {
                 {/* Dropzone Container */}
                 <div 
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-6 rounded-2xl border-2 border-dashed border-white/15 hover:border-cyan-500/50 bg-[#0b0f1a]/60 hover:bg-[#0b0f1a]/90 cursor-pointer transition-all duration-200 text-center space-y-3 group"
+                  className="p-4 sm:p-6 rounded-2xl border-2 border-dashed border-white/15 hover:border-cyan-500/50 bg-[#0b0f1a]/60 hover:bg-[#0b0f1a]/90 cursor-pointer transition-all duration-200 text-center space-y-3 group"
                 >
                   <div className="w-10 h-10 mx-auto rounded-xl bg-white/[0.04] group-hover:bg-cyan-500/10 border border-white/10 group-hover:border-cyan-500/30 flex items-center justify-center text-zinc-400 group-hover:text-cyan-400 transition-colors">
                     <Upload className="w-5 h-5" />
@@ -1042,19 +1194,19 @@ export default function Home() {
                   </div>
 
                   {/* Sample PDF Actions */}
-                  <div className="flex items-center justify-center gap-2.5 pt-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-2.5 pt-2" onClick={(e) => e.stopPropagation()}>
                     <a
                       href="/exemplo-dre-4t24.pdf"
                       download="DRE_Consolidada_Auditoria_4T24.pdf"
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition-all hover:scale-[1.02] shadow-sm"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition-all shadow-sm"
                       title="Baixar PDF de DRE real para testar o upload"
                     >
-                      <Download className="w-3.5 h-3.5" /> Baixar PDF Exemplo (DRE 4T24)
+                      <Download className="w-3.5 h-3.5" /> Baixar PDF Exemplo
                     </a>
                     
                     <button
                       onClick={loadSampleDRE}
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-zinc-200 border border-white/10 transition-all hover:scale-[1.02]"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-zinc-200 border border-white/10 transition-all"
                       title="Testar ingestão com documento de demonstração pré-carregado"
                     >
                       <FileCheck className="w-3.5 h-3.5 text-emerald-400" /> Testar Ingestão Imediata
@@ -1070,44 +1222,44 @@ export default function Home() {
               return (
                 <div
                   key={msg.id}
-                  className={`flex gap-3.5 ${isUser ? "flex-row-reverse" : "flex-row"} group animate-in fade-in-50 duration-200`}
+                  className={`flex gap-2.5 sm:gap-3.5 ${isUser ? "flex-row-reverse" : "flex-row"} group animate-in fade-in-50 duration-200`}
                 >
                   {/* Avatar */}
                   {isUser ? (
-                    <Avatar className="w-9 h-9 mt-1 shrink-0 shadow-md ring-2 ring-blue-500/30">
+                    <Avatar className="w-7 h-7 sm:w-9 sm:h-9 mt-1 shrink-0 shadow-md ring-2 ring-blue-500/30">
                       <AvatarFallback className="bg-gradient-to-tr from-blue-700 to-indigo-700 text-white font-bold text-xs">
-                        <User className="w-4 h-4" />
+                        <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </AvatarFallback>
                     </Avatar>
                   ) : (
-                    <div className="w-9 h-9 rounded-xl overflow-hidden ring-2 ring-cyan-500/30 shadow-md mt-1 shrink-0 bg-[#090d16]">
+                    <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl overflow-hidden ring-2 ring-cyan-500/30 shadow-md mt-1 shrink-0 bg-[#090d16]">
                       <img src="/rn_financial_logo.jpg" alt="RN" className="w-full h-full object-cover" />
                     </div>
                   )}
                   
                   {/* Bubble Container */}
-                  <div className={`flex flex-col ${isUser ? "items-end" : "items-start"} max-w-[90%] sm:max-w-[85%]`}>
+                  <div className={`flex flex-col ${isUser ? "items-end" : "items-start"} max-w-[95%] sm:max-w-[85%] min-w-0`}>
                     
                     {/* Bot Verification & Grounding Header */}
                     {!isUser && (
-                      <div className="flex items-center gap-2 mb-1.5 px-1 text-[11px] text-zinc-400 flex-wrap">
+                      <div className="flex items-center gap-1.5 sm:gap-2 mb-1 px-1 text-[10.5px] sm:text-[11px] text-zinc-400 flex-wrap">
                         <span className="font-bold text-zinc-200">
                           RN Intelligence
                         </span>
                         <span>•</span>
                         <span className="text-cyan-400 font-medium">
-                          Financial Skill
+                          FP&A
                         </span>
                         {msg.groundedness && (
                           <>
                             <span>•</span>
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-md font-mono">
+                            <span className="inline-flex items-center gap-1 text-[9.5px] sm:text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-md font-mono">
                               <ShieldCheck className="w-3 h-3" /> {msg.groundedness}% Grounded
                             </span>
                           </>
                         )}
                         {msg.inferenceTime && (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-zinc-500 font-mono">
+                          <span className="inline-flex items-center gap-1 text-[9.5px] sm:text-[10px] text-zinc-500 font-mono">
                             <Clock className="w-2.5 h-2.5" /> {msg.inferenceTime}
                           </span>
                         )}
@@ -1115,13 +1267,13 @@ export default function Home() {
                     )}
 
                     {/* Message Card */}
-                    <div className={`px-5 py-4 shadow-xl ${
+                    <div className={`px-3.5 sm:px-5 py-3 sm:py-4 shadow-xl break-words overflow-hidden ${
                       isUser 
                         ? "bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 text-white rounded-2xl rounded-tr-xs" 
-                        : "bg-[#0b0f1a]/95 border border-white/10 text-zinc-200 rounded-2xl rounded-tl-xs backdrop-blur-md"
+                        : "bg-[#0b0f1a]/95 border border-white/10 text-zinc-200 rounded-2xl rounded-tl-xs backdrop-blur-md w-full"
                     }`}>
                       {isUser ? (
-                        <p className="text-[14px] leading-relaxed whitespace-pre-wrap">
+                        <p className="text-[13px] sm:text-[14px] leading-relaxed whitespace-pre-wrap break-words">
                           {msg.content}
                         </p>
                       ) : (
@@ -1130,18 +1282,18 @@ export default function Home() {
 
                       {/* Evidence & Grounded Sources Chips */}
                       {!isUser && msg.sources && msg.sources.length > 0 && (
-                        <div className="mt-4 pt-3.5 border-t border-white/10 space-y-2">
-                          <span className="text-[11px] font-bold text-zinc-400 flex items-center gap-1.5 uppercase tracking-wider">
-                            <Layers className="w-3.5 h-3.5 text-cyan-400" /> Evidências & Citações de Auditoria:
+                        <div className="mt-3.5 pt-3 border-t border-white/10 space-y-1.5">
+                          <span className="text-[10.5px] sm:text-[11px] font-bold text-zinc-400 flex items-center gap-1.5 uppercase tracking-wider">
+                            <Layers className="w-3.5 h-3.5 text-cyan-400 shrink-0" /> Evidências & Citações de Auditoria:
                           </span>
-                          <div className="flex items-center gap-1.5 flex-wrap">
+                          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-1.5">
                             {msg.sources.map((src, idx) => (
                               <div 
                                 key={idx}
-                                className="px-2.5 py-1 rounded-lg bg-[#090d16] border border-white/10 text-zinc-300 font-mono text-[11px] flex items-center gap-1.5 hover:border-cyan-500/40 transition-colors"
+                                className="px-2.5 py-1.5 rounded-lg bg-[#090d16] border border-white/10 text-zinc-300 font-mono text-[10px] sm:text-[11px] flex items-start gap-1.5 hover:border-cyan-500/40 transition-colors break-words max-w-full"
                               >
-                                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                                {src}
+                                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0 mt-1" />
+                                <span className="break-words leading-tight">{src}</span>
                               </div>
                             ))}
                           </div>
@@ -1150,15 +1302,15 @@ export default function Home() {
                     </div>
 
                     {/* Timestamp & Copy Action */}
-                    <div className="flex items-center gap-3 mt-1.5 px-1">
-                      <span className="text-[11px] text-zinc-500 font-mono">
+                    <div className="flex items-center gap-3 mt-1 px-1">
+                      <span className="text-[10.5px] text-zinc-500 font-mono">
                         {msg.timestamp}
                       </span>
                       
                       {!isUser && (
                         <button 
                           onClick={() => copyToClipboard(msg.content, msg.id)}
-                          className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="text-[10.5px] sm:text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                           title="Copiar relatório em formato Markdown"
                         >
                           {copiedId === msg.id ? (
@@ -1180,20 +1332,20 @@ export default function Home() {
             
             {/* Loading / Qdrant Inference State */}
             {(isLoading || isUploading) && (
-              <div className="flex gap-3.5 flex-row animate-in fade-in-50">
-                <div className="w-9 h-9 rounded-xl overflow-hidden ring-2 ring-cyan-500/30 shadow-md mt-1 shrink-0 bg-[#090d16]">
+              <div className="flex gap-2.5 sm:gap-3.5 flex-row animate-in fade-in-50">
+                <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl overflow-hidden ring-2 ring-cyan-500/30 shadow-md mt-1 shrink-0 bg-[#090d16]">
                   <img src="/rn_financial_logo.jpg" alt="RN" className="w-full h-full object-cover" />
                 </div>
-                <div className="flex flex-col items-start max-w-[85%]">
-                  <div className="px-5 py-3.5 shadow-xl bg-[#0b0f1a]/95 border border-white/10 rounded-2xl rounded-tl-xs flex items-center gap-3">
-                    <span className="flex gap-1">
+                <div className="flex flex-col items-start max-w-[90%] sm:max-w-[85%]">
+                  <div className="px-4 sm:px-5 py-3 sm:py-3.5 shadow-xl bg-[#0b0f1a]/95 border border-white/10 rounded-2xl rounded-tl-xs flex items-center gap-3">
+                    <span className="flex gap-1 shrink-0">
                       <span className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce" style={{ animationDelay: '0ms' }}/>
                       <span className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '150ms' }}/>
                       <span className="w-2 h-2 rounded-full bg-teal-400 animate-bounce" style={{ animationDelay: '300ms' }}/>
                     </span>
-                    <span className="text-xs font-medium text-zinc-300">
+                    <span className="text-xs font-medium text-zinc-300 leading-tight">
                       {isUploading 
-                        ? "Processando chunks semânticos & gerando embeddings no Qdrant..." 
+                        ? "Processando chunks & embeddings no Qdrant..." 
                         : "Cruzando demonstrações contábeis & sintetizando auditoria..."}
                     </span>
                   </div>
@@ -1206,9 +1358,9 @@ export default function Home() {
         </div>
 
         {/* Floating Obsidian Command Input */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 bg-gradient-to-t from-[#090d16] via-[#090d16]/95 to-transparent pointer-events-none z-20">
+        <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-4 md:p-6 pb-2.5 sm:pb-4 bg-gradient-to-t from-[#090d16] via-[#090d16]/95 to-transparent pointer-events-none z-20">
           <div className="max-w-4xl mx-auto pointer-events-auto">
-            <div className="relative flex items-center p-2 bg-[#0b0f1a]/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-black/80 focus-within:ring-2 focus-within:ring-cyan-500/40 focus-within:border-cyan-500/50 transition-all">
+            <div className="relative flex items-center p-1.5 sm:p-2 bg-[#0b0f1a]/95 backdrop-blur-2xl border border-white/10 rounded-xl sm:rounded-2xl shadow-2xl shadow-black/80 focus-within:ring-2 focus-within:ring-cyan-500/40 focus-within:border-cyan-500/50 transition-all">
               
               <input 
                 type="file" 
@@ -1225,8 +1377,9 @@ export default function Home() {
               <button 
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading || isLoading}
-                className="p-2.5 text-zinc-400 hover:text-cyan-400 hover:bg-white/[0.05] rounded-xl transition-colors shrink-0 disabled:opacity-50"
+                className="p-2 sm:p-2.5 text-zinc-400 hover:text-cyan-400 hover:bg-white/[0.05] rounded-xl transition-colors shrink-0 disabled:opacity-50"
                 title="Anexar DRE em PDF para indexação"
+                aria-label="Anexar DRE em PDF"
               >
                 <Paperclip className="w-4 h-4" />
               </button>
@@ -1240,28 +1393,29 @@ export default function Home() {
                     handleSendMessage();
                   }
                 }}
-                placeholder="Pergunte ao RN Intelligence sobre margens, EBITDA, DRE ou anexe um balanço..."
-                className="flex-1 bg-transparent border-0 focus:ring-0 text-[13.5px] px-3 outline-none text-zinc-100 placeholder:text-zinc-500"
+                placeholder="Pergunte sobre EBITDA, margens, DRE ou envie um PDF..."
+                className="flex-1 bg-transparent border-0 focus:ring-0 text-[14px] sm:text-[13.5px] px-2 sm:px-3 outline-none text-zinc-100 placeholder:text-zinc-500 min-w-0"
                 disabled={isLoading || isUploading}
               />
               
               <button 
                 onClick={() => handleSendMessage()}
                 disabled={!inputValue.trim() || isLoading || isUploading}
-                className="p-2.5 bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-500 hover:from-blue-500 hover:via-cyan-500 hover:to-teal-400 text-white rounded-xl transition-all duration-200 active:scale-95 disabled:opacity-30 disabled:active:scale-100 shadow-md shadow-cyan-500/20 shrink-0"
+                className="p-2 sm:p-2.5 bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-500 hover:from-blue-500 hover:via-cyan-500 hover:to-teal-400 text-white rounded-lg sm:rounded-xl transition-all duration-200 active:scale-95 disabled:opacity-30 disabled:active:scale-100 shadow-md shadow-cyan-500/20 shrink-0"
                 title="Executar auditoria"
+                aria-label="Executar auditoria"
               >
                 <Send className="w-4 h-4" />
               </button>
             </div>
             
-            <div className="flex items-center justify-between px-3 mt-2 text-[10.5px] text-zinc-500">
-              <span className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                RN Intelligence v2.4 • Skill Auditoria Financeira & RAG
+            <div className="flex flex-col sm:flex-row items-center justify-between px-2 sm:px-3 mt-1.5 sm:mt-2 text-[9.5px] sm:text-[10.5px] text-zinc-500 gap-0.5 sm:gap-1 text-center sm:text-left">
+              <span className="flex items-center justify-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                RN Intelligence v2.4 • Skill Auditoria Financeira
               </span>
-              <span className="font-mono">
-                Qdrant Vector Engine 768d • Gemini 2.0 Flash
+              <span className="font-mono text-zinc-500">
+                Qdrant 768d • Gemini 2.0 Flash
               </span>
             </div>
           </div>
